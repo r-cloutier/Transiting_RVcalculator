@@ -8,8 +8,8 @@ c = 299792458.
 class RVcalculator:
 
     def __init__(self, startheta, planettheta, MRfunc,
-                 detsigs=[3,5], additiveRVjitter=0, texp=0,
-                 texpmin=1, texpmax=60, bands=['Y','J','H','K'], R=75e3,
+                 detsigs=[3,5], sigmaRV=0, bands=['Y','J','H','K'], texp=0,
+                 texpmin=1, texpmax=60, additiveRVjitter=0, R=75e3,
                  aperture=3.58, efficiency=.15, SNRtarget=150):
         '''
         Given the known stellar parameters, planet transit parameters, and 
@@ -40,9 +40,14 @@ class RVcalculator:
             RV semi-amplitude of transiting planets.
         `detsigs': scalar or array-like
             The desired planet mass detection signficances (e.g. 3 for 3 sigma)
-        `additiveRVjitter': scalar
-            An extra RV jitter term to be added to the effective RV uncertainty 
-            in quadrature [in m/s]
+        `sigmaRV': scalar
+            The (constant) RV measurement uncertainty [in m/s]. If sigmaRV=0 
+            then sigmaRV is estimated from the stellar and instrument 
+            parameters. If sigmaRV!=0 then it is fixed to that value. 
+        `bands': list of strings (Nmags,)
+            Names of the velocimeter's broadband photometric bands for which 
+            the star's apparent magnitudes have been specified. Must have the 
+            same number of entries as `mags' in `startheta'.
         `texp': scalar
             The spectroscopic exposure time [in minutes]. If texp=0 then the 
             exposure time is calculated based on a target signal-to-noise 
@@ -51,10 +56,9 @@ class RVcalculator:
             The minimum permitted exposure time [in minutes].
         `texpmax': scalar
             The maximum permitted exposure time [in minutes].
-        `bands': list of strings (Nmags,)
-            Names of the velocimeter's broadband photometric bands for which 
-            the star's apparent magnitudes have been specified. Must have the 
-            same number of entries as `mags' in `startheta'.
+        `additiveRVjitter': scalar
+            An extra RV jitter term to be added to the effective RV uncertainty 
+            in quadrature [in m/s]
         `R': scalar
             Spectral resolution of the velocimeter.
         `aperture': scalar
@@ -72,10 +76,13 @@ class RVcalculator:
         >>> P, sigP, rp = 1.629, 3e-5, 1.16
         >>> self = RVcalculator((mags,SpT,vsini,Ms,sigMs), (P,sigP,rp), WM14)
         '''
-        
-        # Check
+        # Define stellar and planet parameters
         mags, self.SpT, self.vsini, Ms, sigMs = startheta
         self.Ms = unumpy.uarray(Ms, sigMs)
+        P, sigP, self.rp = planettheta
+        self.P = unumpy.uarray(P, sigP)
+        
+        # Check bands and mags
         self.mags, self.bands = np.asarray(mags), np.asarray(bands)
         if self.mags.size != self.bands.size:
             raise ValueError('Do not have the same number of magnitudes ' + \
@@ -87,15 +94,20 @@ class RVcalculator:
         if self.texpmin <= 0:
             raise ValueError('texpmin must be greater than 0.')
         self.aperture, self.efficiency = aperture, efficiency
-        self.element_res = c / self.R
+        self.element_res = c*1e-3 / self.R
         if texp == 0:
             self._compute_texp()
         else:
             self.texp = texp
 
-        # Compute expected RV measurement uncertainty
-        #self._compute_sigmaRV()
-
+        # Compute expected RV measurement uncertainty if not specified
+        self.sigmaRV, self.additiveRVjitter = sigmaRV, additiveRVjitter
+        if self.sigmaRV == 0:
+            self._compute_sigmaRV()
+        else:
+            self.sigmaRV, self.sigmaRV_eff = np.repeat(sigmaRV, 2)
+        self.sigmaRV_eff = np.sqrt(self.sigmaRV_eff**2+self.additiveRVjitter**2)
+        
 
         
     def _compute_texp(self):
@@ -112,14 +124,14 @@ class RVcalculator:
                 snrs_tmp[j] = self._get_snr(self.bands[j], self.mags[j],
                                             texps[i])
             SNRs[i] = np.median(snrs_tmp)
-
+            
         # Return texp that gets us closest to the desired SNRtarget
         g = abs(SNRs-self.SNRtarget) == abs(SNRs-self.SNRtarget).min()
-        self.texp = texps[g]
+        self.texp = float(texps[g])
 
 
 
-    def _get_snr(self, band, mag, texp):
+    def _get_snr(self, band, mag, texp):  # WORKING
         '''
         Compute the SNR of the spectrum in a certain band (e.g. 'J').
         
@@ -164,14 +176,13 @@ class RVcalculator:
 
         # Get Fl of the star in ergs s^-1 A^-1 cm^-2
         fl = Fl * 10**(-.4 * mag)
-
+        
         # Get # of photons per angstrom
-        Ephot = h*c_As/l
+        Ephot = h * c_As / l
         Nphot_A = fl * texp_s * area * self.efficiency / Ephot
 
         # Get # photons per resolution element (dl/l)
-        dl_l = c_kms / resele  # dimensionless (75000)
-        Nphot_res = Nphot_A * (l / dl_l)
+        Nphot_res = Nphot_A * (l / self.R)
 
         # Add photon noise and dark current to noise budget
         darkcurrent, footprint = 1e-2, 12     # electrons/s, pixels
@@ -189,13 +200,12 @@ class RVcalculator:
         # Get SNR in each passband of interest
         SNRs = np.zeros(self.bands.size)
         for i in range(self.bands.size):
-            print self.bands[i], self.mags[i], self.texp
             SNRs[i] = self._get_snr(self.bands[i], self.mags[i], self.texp)
 
         # Get sigmaRV from Figueira+2016 tables
         self.SNRs, self.SNR = SNRs, np.median(SNRs)
-        self.sigmaRV = self._rvcontent(self.SNR)
-
+        self.sigmaRV, self.sigmaRV_eff = self._rvcontent(self.SNR)
+        
 
     def _rvcontent(self, SNR):
         '''
@@ -211,17 +221,19 @@ class RVcalculator:
         '''
         # Check parameter values for interpolation
         if self.SpT < 0:
-            self.SpT = 0
+            SpT = 0
         elif self.SpT > 9:
-            self.SpT = 9.
+            SpT = 9.
         if self.vsini < 1:
-            self.vsini = 1.
+            vsini = 1.
         elif self.vsini > 10:
-            self.vsini = 10.
+            vsini = 10.
         if self.R < 6e4:
-            self.R = 6e4
+            R = 6e4
         elif self.R > 1e5:
-            self.R = 1e5
+            R = 1e5
+        else:
+            R = self.R
 
         # Get grid of data
         d = np.genfromtxt('input_data/rvcontent_Figueira16.dat', dtype=str)
@@ -230,10 +242,10 @@ class RVcalculator:
         band_t = d[:,1]
         
         # Get range of resolutions
-        if self.R not in R_t:
-            Rs = np.array([np.floor(self.R/2e4)*2e4, np.ceil(self.R/2e4)*2e4])
+        if R not in R_t:
+            Rs = np.array([np.floor(R/2e4)*2e4, np.ceil(R/2e4)*2e4])
         else:
-            Rs = np.ascontiguousarray(self.R)
+            Rs = np.ascontiguousarray(R)
 
         # Get SNR in each band
         nbands, nR = self.bands.size, Rs.size
@@ -252,13 +264,13 @@ class RVcalculator:
                 
                 # Get resolution coefficients for weighted mean
                 if nR > 1:
-                    rescoeffs[j] = abs(1 - abs(self.R - Rs[j]) / np.diff(Rs))
+                    rescoeffs[j] = abs(1 - abs(R - Rs[j]) / np.diff(Rs))
 
         # Scale RVs because the RV accuracy in Figueira+2016 was set at SNR=100
         sigmarvs *= np.sqrt(1e2/SNR)
 
         # Combine results of different resolutions with weighted mean
-        if nres > 1:
+        if nR > 1:
             sigmarvs2 = np.zeros(nbands)
             for i in range(nbands):
                 sigmarvs2[i] = sigmarvs[i][0] * rescoeffs[0] + \
@@ -267,11 +279,17 @@ class RVcalculator:
             sigmarvs2 = sigmarvs
 
         # Combine all bands and floor at a 1 m/s stability
-        return 1./np.sqrt(np.sum(1./sigmarvs2**2))
+        sigmaRV = 1./np.sqrt(np.sum(1./sigmarvs2**2))
+        sigmaRV_eff = sigmaRV if sigmaRV >= 1 else 1.
+        return sigmaRV, sigmaRV_eff
+        
 
-
-# TEMP
-if __name__ == '__main__':
-    mags, SpT, vsini, Ms, sigMs = [10.,9.2,8.7,8.3], 4.5, .1, .181, .019
+def test():
+    mags, SpT, vsini, Ms, sigMs = [10.4,9.2,8.7,8.3], 4.5, .1, .181, .019
     P, sigP, rp = 1.629, 3e-5, 1.16
-    self = RVcalculator((mags,SpT,vsini,Ms,sigMs), (P,sigP,rp), WM14)
+    return RVcalculator((mags,SpT,vsini,Ms,sigMs), (P,sigP,rp), WM14)
+
+
+if __name__ == '__main__':
+    self = test()
+    
