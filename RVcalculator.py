@@ -1,5 +1,6 @@
 from imports import *
 from MRrelations import *
+from rv_k import *
 
 global c
 c = 299792458.
@@ -76,11 +77,9 @@ class RVcalculator:
         >>> P, sigP, rp = 1.629, 3e-5, 1.16
         >>> self = RVcalculator((mags,SpT,vsini,Ms,sigMs), (P,sigP,rp), WM14)
         '''
-        # Define stellar and planet parameters
+        # Define stellar parameters
         mags, self.SpT, self.vsini, Ms, sigMs = startheta
         self.Ms = unumpy.uarray(Ms, sigMs)
-        P, sigP, self.rp = planettheta
-        self.P = unumpy.uarray(P, sigP)
         
         # Check bands and mags
         self.mags, self.bands = np.asarray(mags), np.asarray(bands)
@@ -108,7 +107,25 @@ class RVcalculator:
             self.sigmaRV, self.sigmaRV_eff = np.repeat(sigmaRV, 2)
         self.sigmaRV_eff = np.sqrt(self.sigmaRV_eff**2+self.additiveRVjitter**2)
         
+        # Get planet parameters
+        self.planettheta, self.MRfunc = planettheta, MRfunc
+        self._define_planet()
 
+        # 
+        
+
+    def _define_planet(self):
+        '''
+        Define planet parameters including period, radius, mass, and RV 
+        semi-amplitude.
+        '''
+        P, sigP, self.rp = self.planettheta
+        self.P = unumpy.uarray(P, sigP)
+        self.mp = self.MRfunc(self.rp)
+        self.K = RV_K(self.P, self.Ms, self.mp)
+        del self.planettheta
+
+        
         
     def _compute_texp(self):
         '''
@@ -190,7 +207,7 @@ class RVcalculator:
 
         return SNR
 
-
+    
 
     def _compute_sigmaRV(self):
         '''
@@ -282,6 +299,7 @@ class RVcalculator:
         sigmaRV = 1./np.sqrt(np.sum(1./sigmarvs2**2))
         sigmaRV_eff = sigmaRV if sigmaRV >= 1 else 1.
         return sigmaRV, sigmaRV_eff
+
         
 
 def test():
