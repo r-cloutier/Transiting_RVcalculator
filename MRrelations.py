@@ -40,11 +40,12 @@ def WM14(rps):
     return mps
 
 
+
 def WM14_upperlimit(rps):
     '''
     Compute the 1 sigma upper limit on the planetary mass from input planetary 
-    radii based on the mean mass-radius relation plus rms for small planets (radius 
-    <= 4 Earth radii) from Weiss & Marcy 2014 (Eqs. 1-3).
+    radii based on the mean mass-radius relation plus rms for small planets 
+    (radius <= 4 Earth radii) from Weiss & Marcy 2014 (Eqs. 1-3).
 
     Parameters
     ----------
@@ -62,7 +63,7 @@ def WM14_upperlimit(rps):
     rps = np.ascontiguousarray(rps)
     mps = WM14(rps)
 
-    # Add 1 sigma upper limit to mean masses
+    # Add 1 sigma to mean masses to get upper limits
     maxE, rmsE, rmsN = 1.5, 2.7, 4.7
     for i in range(mps.size):
 
@@ -72,4 +73,49 @@ def WM14_upperlimit(rps):
         else:
             mps[i] += rmsN
 
+    return mps
+
+
+
+def WM14_lowerlimit(rps):
+    '''
+    Compute the 1 sigma lower limit on the planetary mass from input planetary 
+    radii based on the mean mass-radius relation minus rms for small planets 
+    (radius <= 4 Earth radii) from Weiss & Marcy 2014 (Eqs. 1-3). Negative  
+    masses are not permitted. 
+
+    Parameters
+    ----------
+    `rps': float or array-like
+        Value(s) of the planetary radii that will be converted to a planetary
+        mass. Units of the input radii are assumed to be in Earth radii.
+
+    Returns
+    -------
+    `mps': numpy-array
+        Planetary masses in Earth masses corresponding to the planetary radii
+        given in `rps'.
+    '''
+    # Compute mean mass
+    rps = np.ascontiguousarray(rps)
+    mps = WM14(rps)
+
+    
+    # Subtract 1 sigma from mean masses to get lower limits
+    maxE, rmsE, rmsN = 1.5, 2.7, 4.7
+    for i in range(mps.size):
+
+        if rps[i] < maxE:
+            mps[i] -= rmsE
+
+        else:
+            mps[i] -= rmsN
+
+    # Assign small masses to negative mass planets
+    if np.any(mps < 0):
+        low_mp = 1e-10
+        warnings.warn('\nNegative mass planets are being set to ' + \
+                      '%.0e Earth masses.'%low_mp, Warning)
+        mps[mps < 0] = low_mp
+            
     return mps
