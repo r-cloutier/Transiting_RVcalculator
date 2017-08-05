@@ -24,8 +24,8 @@ plus the planet's radius, orbital period, and its uncertainty from the transit l
 
 .. code:: python
 
-   P, sigP = 20, 1e-5  # days
    rp = 2  # Earth radii
+   P, sigP = 20, 1e-5  # days
 
 one can estimate the number of RV measurements required to obtain a detection of the planet's mass at a specified 
 detection significance by assumming a mass-radius relation to estimate the planet's mass from its radius e.g.
