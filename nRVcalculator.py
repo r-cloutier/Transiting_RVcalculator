@@ -81,7 +81,7 @@ class nRVcalculator:
         self.Ms = unp.uarray(Ms, sigMs)
         
         # Check bands and mags
-        self.mags, self.bands = np.asarray(mags), np.asarray(bands)
+        self.mags, self.bands = np.ascontiguousarray(mags), np.ascontiguousarray(bands)
         if sigmaRV == 0 and texp == 0:
             if self.mags.size != self.bands.size:
                 raise ValueError('Do not have the same number of ' + \
@@ -383,7 +383,7 @@ class nRVcalculator:
         '''
         Ms, sigMs = unp.nominal_values(self.Ms), unp.std_devs(self.Ms)
         P, sigP = unp.nominal_values(self.P), unp.std_devs(self.P)
-        print '#'*80, '\n## Stellar Parameters:'
+        print '#'*83, '\n## Stellar Parameters:'
         for i in range(self.mags.size):
             print '## %s\t=\t%.2f'%(self.bands[i], self.mags[i])
         print '## Spectral type\t=\tM%.1f'%self.SpT
@@ -399,7 +399,7 @@ class nRVcalculator:
         print '## Effective RV uncertainty\t=\t %.3f m/s'%self.sigmaRV_eff
         print '##\n## Results:'
         for i in range(self.detsigs.size):
-            print '## %i sigma detection significance '%self.detsigs[i] + \
+            print '## %.2f sigma detection significance '%self.detsigs[i] + \
                 'requires %i uniformly sampled RV measurements.'%self.nRVs[i]
-        print '#'*80
+        print '#'*83
         
