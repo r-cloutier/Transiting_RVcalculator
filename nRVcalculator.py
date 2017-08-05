@@ -402,3 +402,4 @@ class RVcalculator:
             print '## %i sigma detection significance '%self.detsigs[i] + \
                 'requires %i uniformly sampled RV measurements.'%self.nRVs[i]
         print '#'*80
+        
