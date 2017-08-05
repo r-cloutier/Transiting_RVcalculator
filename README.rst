@@ -3,6 +3,9 @@ Transiting_RVcalculator
 
 A tool used to estimate the number of radial velocity measurements required to detect the mass of a known transiting planet at a desired detection significance based on the Fisher information.
 
+Quick example
+-------------
+
 Given the stellar apparent magnitudes in the various spectral bins of the velocimeter (e.g. Y,J,H,K), the numerical spectral type, projected rotation velocity, stellar mass, and its uncertainty:
 
 .. code:: python
@@ -16,7 +19,8 @@ plus the planet's radius, orbital period, and its uncertainty from the transit l
 
 .. code:: python
 
-   P, sigP, rp = 20, 1e-5, 2  # days, days, and Earth radii
+   P, sigP = 20, 1e-5  # days
+   rp = 2  # Earth radii
 
 one can estimate the number of RV measurements required to obtain a detection of the planet's mass at a specified 
 detection significance by assumming a mass-radius relation to estimate the planet's mass from its radius e.g.
@@ -24,7 +28,7 @@ detection significance by assumming a mass-radius relation to estimate the plane
 .. code:: python
 
    def simple_MR(rp):
-      return float(rp)**2  # planet mass in Earth masses assuming a constant surface gravity
+      return float(rp)**2  # planet mass in Earth masses assuming a constant Earth-like surface gravity
 
 Now we can calculate the number of RV measurements (N) required to detect the planet's mass at 5 sigma using
 
