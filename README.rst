@@ -16,7 +16,7 @@ plus the planet's radius, orbital period, and its uncertainty from the transit l
 
 .. code:: python
 
-   P, sigP, rp = 20, 1e-5, 1.8  # days, days, and Earth radii
+   P, sigP, rp = 20, 1e-5, 3  # days, days, and Earth radii
 
 one can estimate the number of RV measurements required to obtain a detection of the planet's mass at a specified 
 detection significance by assumming a mass-radius relation to estimate the planet's mass from its radius e.g.
@@ -24,7 +24,7 @@ detection significance by assumming a mass-radius relation to estimate the plane
 .. code:: python
 
    def simple_MR(rp):
-      return rp**2  # constant surface gravity
+      return float(rp)**2  # planet mass in Earth masses assuming a constant surface gravity
 
 Now we can calculate the number of RV measurements (N) required to detect the planet's mass at 5 sigma using
 
@@ -39,3 +39,5 @@ The estimation of N is accessed via
 .. code:: python
 
     print self.nRVs
+
+and is 62 in this example for a planet with an RV semi-amplitude of 2.26 m/s in an RV time-series with an average measurement uncertainty of 2.38 m/s.
