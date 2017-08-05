@@ -1,5 +1,4 @@
 from imports import *
-from MRrelations import *
 from rv_k import *
 
 global c
@@ -375,14 +374,3 @@ class RVcalculator:
             Array of K measurement uncertainties as a function of `nRV_arr'. 
         '''
         return self.sigmaRV_eff * np.sqrt(2./nRV_arr)
-        
-
-def test():
-    mags, SpT, vsini, Ms, sigMs = [10.4,9.2,8.7,8.3], 4.5, .1, .181, .019
-    P, sigP, rp = 1.629, 3e-5, 1.16
-    return RVcalculator((mags,SpT,vsini,Ms,sigMs), (P,sigP,rp), WM14)
-
-
-if __name__ == '__main__':
-    self = test()
-    
