@@ -40,4 +40,4 @@ The estimation of N is accessed via
 
     print self.nRVs
 
-and is 41 in this example for a planet with an RV semi-amplitude of 2.79 m/s in an RV time-series with an average measurement uncertainty of 2.38 m/s.
+and is 41 in this example for a planet with an RV semi-amplitude of 2.79 m/s (self.K) in an RV time-series with an average measurement uncertainty of 2.38 m/s (self.sigmaRV_eff).
