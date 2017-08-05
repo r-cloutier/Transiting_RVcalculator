@@ -321,6 +321,8 @@ class RVcalculator:
         Estimate the number of RV measurements required to detect the planet 
         mass at a given detection significance.
         '''
+        self.Ntest, self.mpdetsigs = np.zeros((self.detsigs.size, 100)), \
+                                     np.zeros((self.detsigs.size, 100))
         self.nRVs = np.zeros(self.detsigs.size, dtype=np.int)
         for i in range(self.detsigs.size):
 
@@ -330,21 +332,24 @@ class RVcalculator:
             while not gotdetsig:
                 
                 # Compute sigma_K as a function of N
-                Ntest = np.arange(1+moreN, 101+moreN)
-                sigKs = self._compute_sigK(Ntest)
+                self.Ntest[i] = np.arange(1+moreN, 101+moreN)
+                sigKs = self._compute_sigK(self.Ntest[i])
                 Ks = unumpy.uarray(self.K, sigKs)
                 
                 # Compute corresponding sigma_mp as a function of N
                 mps = RV_mp(self.P, self.Ms, Ks)
-                detsigs = unumpy.nominal_values(mps) / unumpy.std_devs(mps)
+                self.mpdetsigs[i] = unumpy.nominal_values(mps) / \
+                                    unumpy.std_devs(mps)
                 
                 # Did we get the desired detsig?
-                if detsigs.min() <= self.detsigs[i] <= detsigs.max():
-                    self.nRVs[i] = Ntest[abs(detsigs-self.detsigs[i]) == \
-                                         abs(detsigs-self.detsigs[i]).min()][0]
+                if self.mpdetsigs[i].min() <= self.detsigs[i] <= \
+                   self.mpdetsigs[i].max():
+                    g = abs(self.mpdetsigs[i]-self.detsigs[i]) == \
+                        abs(self.mpdetsigs[i]-self.detsigs[i]).min()
+                    self.nRVs[i] = self.Ntest[i][g][0]
                     gotdetsig = True
 
-                elif detsig < detsigs.min():
+                elif self.detsigs[i] < self.mpdetsigs[i].min():
                     warnings.warn("It is too easy to measure this planet's " + \
                                   'mass at a detection significance of ' + \
                                   '%.1f sigma.'%self.detsig, Warning)
