@@ -114,7 +114,7 @@ class RVcalculator:
         # Estimate the number of RV visits required to measure the planet
         # mass at a desired detection significance
         self.detsigs = np.ascontiguousarray(detsigs)
-        #self._estimate_nRVs()
+        self._estimate_nRVs()
         
 
     def _define_planet(self):
@@ -124,10 +124,11 @@ class RVcalculator:
         '''
         P, sigP, self.rp = self.planettheta
         self.P = unumpy.uarray(P, sigP)
-        self.mp = self.MRfunc(self.rp)
-        self.K = unumpy.nominal_values(RV_K(unumpy.nominal_values(self.P),
-                                            unumpy.nominal_values(self.Ms),
-                                            self.mp))
+        self.mp = float(self.MRfunc(self.rp))
+        K = unumpy.nominal_values(RV_K(unumpy.nominal_values(self.P),
+                                       unumpy.nominal_values(self.Ms),
+                                       self.mp))
+        self.K = float(K)
         del self.planettheta
 
         Ktmp = unumpy.nominal_values(self.K) 
@@ -320,7 +321,7 @@ class RVcalculator:
         Estimate the number of RV measurements required to detect the planet 
         mass at a given detection significance.
         '''
-        self.nRVs = np.zeros(self.detsigs.size)
+        self.nRVs = np.zeros(self.detsigs.size, dtype=np.int)
         for i in range(self.detsigs.size):
 
             # Compute detection significance for increasing nRVs until
@@ -329,25 +330,46 @@ class RVcalculator:
             while not gotdetsig:
                 
                 # Compute sigma_K as a function of N
-                Ntest = np.arange(1, 101+moreN)
-                sigK = compute_sigK_1circularplanet(sigRV, Ntest)
-                self.K = unumpy.uarray(self.K, sigK)
+                Ntest = np.arange(1+moreN, 101+moreN)
+                sigKs = self._compute_sigK(Ntest)
+                Ks = unumpy.uarray(self.K, sigKs)
                 
                 # Compute corresponding sigma_mp as a function of N
-                self.mp = RV_mp(self.P, self.Ms, self.K)
-                detsigs = unp.nominal_values(umps) / unp.std_devs(umps)
+                mps = RV_mp(self.P, self.Ms, Ks)
+                detsigs = unumpy.nominal_values(mps) / unumpy.std_devs(mps)
+                
+                # Did we get the desired detsig?
+                if detsigs.min() <= self.detsigs[i] <= detsigs.max():
+                    self.nRVs[i] = Ntest[abs(detsigs-self.detsigs[i]) == \
+                                         abs(detsigs-self.detsigs[i]).min()][0]
+                    gotdetsig = True
 
-        # Did we get the desired detsig?
-        if detsigs.min() <= detsig <= detsigs.max():
-            Nvisits = Ntest[abs(detsigs-detsig) == abs(detsigs-detsig).min()][0]
-            atdetsig = True
-        elif detsig < detsigs.min():
-            raise ValueError('It is too easy to get measure the planet at this detection significance.')
-        else:
-            moreN += 25
-    return Nvisits
-        
+                elif detsig < detsigs.min():
+                    warnings.warn("It is too easy to measure this planet's " + \
+                                  'mass at a detection significance of ' + \
+                                  '%.1f sigma.'%self.detsig, Warning)
 
+                else:
+                    moreN += 25
+
+
+
+    def _compute_sigK(self, nRV_arr):
+        '''
+        Estimate the measurement uncertainty on K analytically from the Fisher 
+        information assuming a single transiting planet on a circular orbit.
+
+        Parameters
+        ----------
+        `nRV_arr': array-like
+            Array of numbers of RV measurements.
+
+        Returns
+        -------
+        `sigKs': numpy-array (nRV,)
+            Array of K measurement uncertainties as a function of `nRV_arr'. 
+        '''
+        return self.sigmaRV_eff * np.sqrt(2./nRV_arr)
         
 
 def test():
