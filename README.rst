@@ -3,6 +3,11 @@ Transiting_RVcalculator
 
 A tool used to estimate the number of radial velocity measurements required to detect the mass of a known transiting planet at a desired detection significance based on the Fisher information.
 
+Restrictions of the current version
+-----------------------------------
+* computing the RV measurement uncertainty can only be done on M dwarfs with spectral types M0-9
+* computing the RV measurement uncertainty can only be done for any combination of the following nIR spectral bands: Y, J, H, and K
+
 Quick example
 -------------
 
