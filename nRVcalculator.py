@@ -5,7 +5,7 @@ global c
 c = 299792458.
 
 
-class RVcalculator:
+class nRVcalculator:
 
     def __init__(self, startheta, planettheta, MRfunc,
                  detsigs=[3,5], sigmaRV=0, bands=['Y','J','H','K'], texp=0,
