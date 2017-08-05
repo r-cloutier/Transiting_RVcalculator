@@ -7,11 +7,11 @@ G = 6.67408e-11
 def days2sec(t):
     return t * 24. * 60 * 60
 def Msun2kg(m):
-    return m * 1.989e30
+    return m * 1.98849925145e30
 def Mearth2kg(m):
-    return m * 5.972e24
+    return m * 6.04589804468e24
 def kg2Mearth(m):
-    return m / 5.972e24
+    return m / 6.04589804468e24
 
 
 def RV_K(P, Ms, Mp, ecc=0., inc=90.):
@@ -38,9 +38,9 @@ def RV_K(P, Ms, Mp, ecc=0., inc=90.):
         RV semi-amplitude [in m/s]
     '''
     P, Ms, Mp, inc = days2sec(P), Msun2kg(Ms), Mearth2kg(Mp), \
-                     unumpy.radians(inc)
+                     unp.radians(inc)
     return (2*np.pi*G/(P*Ms*Ms))**(1./3) * \
-        Mp*unumpy.sin(inc) / unumpy.sqrt(1-ecc**2)
+        Mp*unp.sin(inc) / unp.sqrt(1-ecc**2)
 
 
 def RV_mp(P, Ms, K, ecc=0., inc=90.):
@@ -66,7 +66,7 @@ def RV_mp(P, Ms, K, ecc=0., inc=90.):
     `mp': uncertainty array
         Planet mass [in Earth masses]
     '''
-    P, Ms, inc = days2sec(P), Msun2kg(Ms), unumpy.radians(inc)
+    P, Ms, inc = days2sec(P), Msun2kg(Ms), unp.radians(inc)
     mp = K * (P*Ms*Ms/(2*np.pi*G))**(1./3) * \
-         unumpy.sqrt(1-ecc**2)/unumpy.sin(inc)    
+         unp.sqrt(1-ecc**2)/unp.sin(inc)    
     return kg2Mearth(mp)

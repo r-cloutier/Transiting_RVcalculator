@@ -78,13 +78,14 @@ class RVcalculator:
         '''
         # Define stellar parameters
         mags, self.SpT, self.vsini, Ms, sigMs = startheta
-        self.Ms = unumpy.uarray(Ms, sigMs)
+        self.Ms = unp.uarray(Ms, sigMs)
         
         # Check bands and mags
         self.mags, self.bands = np.asarray(mags), np.asarray(bands)
-        if self.mags.size != self.bands.size:
-            raise ValueError('Do not have the same number of magnitudes ' + \
-                             'as bands.')
+        if sigmaRV == 0 and texp == 0:
+            if self.mags.size != self.bands.size:
+                raise ValueError('Do not have the same number of ' + \
+                                 'magnitudes as bands.')
 
         # Compute exposure time if not specified
         self.SNRtarget, self.R = SNRtarget, R
@@ -93,7 +94,7 @@ class RVcalculator:
             raise ValueError('texpmin must be greater than 0.')
         self.aperture, self.efficiency = aperture, efficiency
         self.element_res = c*1e-3 / self.R
-        if texp == 0:
+        if texp == 0 and sigmaRV == 0:
             self._compute_texp()
         else:
             self.texp = texp
@@ -122,15 +123,15 @@ class RVcalculator:
         semi-amplitude.
         '''
         P, sigP, self.rp = self.planettheta
-        self.P = unumpy.uarray(P, sigP)
+        self.P = unp.uarray(P, sigP)
         self.mp = float(self.MRfunc(self.rp))
-        K = unumpy.nominal_values(RV_K(unumpy.nominal_values(self.P),
-                                       unumpy.nominal_values(self.Ms),
+        K = unp.nominal_values(RV_K(unp.nominal_values(self.P),
+                                       unp.nominal_values(self.Ms),
                                        self.mp))
         self.K = float(K)
         del self.planettheta
 
-        Ktmp = unumpy.nominal_values(self.K) 
+        Ktmp = unp.nominal_values(self.K) 
         if Ktmp <= self.sigmaRV_eff:
             message = '\nExpected K (%.3f m/s) is less than the '%Ktmp + \
                       'effective RV measurement uncertainty ' + \
@@ -333,12 +334,12 @@ class RVcalculator:
                 # Compute sigma_K as a function of N
                 self.Ntest[i] = np.arange(1+moreN, 101+moreN)
                 sigKs = self._compute_sigK(self.Ntest[i])
-                Ks = unumpy.uarray(self.K, sigKs)
+                Ks = unp.uarray(self.K, sigKs)
                 
                 # Compute corresponding sigma_mp as a function of N
                 mps = RV_mp(self.P, self.Ms, Ks)
-                self.mpdetsigs[i] = unumpy.nominal_values(mps) / \
-                                    unumpy.std_devs(mps)
+                self.mpdetsigs[i] = unp.nominal_values(mps) / \
+                                    unp.std_devs(mps)
                 
                 # Did we get the desired detsig?
                 if self.mpdetsigs[i].min() <= self.detsigs[i] <= \
@@ -374,3 +375,30 @@ class RVcalculator:
             Array of K measurement uncertainties as a function of `nRV_arr'. 
         '''
         return self.sigmaRV_eff * np.sqrt(2./nRV_arr)
+
+
+    def report_results(self):
+        '''
+        Print the results to screen.
+        '''
+        Ms, sigMs = unp.nominal_values(self.Ms), unp.std_devs(self.Ms)
+        P, sigP = unp.nominal_values(self.P), unp.std_devs(self.P)
+        print '#'*80, '\n## Stellar Parameters:'
+        for i in range(self.mags.size):
+            print '## %s\t=\t%.2f'%(self.bands[i], self.mags[i])
+        print '## Spectral type\t=\tM%.1f'%self.SpT
+        print '## Stellar mass\t=\t%.3f +- %.3f Solar masses'%(Ms, sigMs)
+        print '## Projected rotation velocity\t=\t%.2f km/s'%self.vsini
+        print '##\n## Planet Parameters:'
+        print '## Orbital period\t=\t%.5f +- %.1e days'%(P, sigP)
+        print '## Planet radius\t=\t%.2f Earth radii'%self.rp
+        print '## Planet mass\t=\t%.2f Earth masses'%self.mp
+        print '## RV semi-amplitude\t=\t%.2f m/s\n##'%self.K
+        if self.texp != 0:
+            print '## Exposure time\t=\t%.3f minutes'%self.texp
+        print '## Effective RV uncertainty\t=\t %.3f m/s'%self.sigmaRV_eff
+        print '##\n## Results:'
+        for i in range(self.detsigs.size):
+            print '## %i sigma detection significance '%self.detsigs[i] + \
+                'requires %i uniformly sampled RV measurements.'%self.nRVs[i]
+        print '#'*80
